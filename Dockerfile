@@ -1,16 +1,19 @@
-FROM phusion/passenger-ruby22:0.9.15
+FROM metakungfu/ruby
 
-EXPOSE 80
-ENV APP_HOME=/home/app/pact_broker
-CMD ["/sbin/my_init"]
-RUN rm -f /etc/service/nginx/down
-RUN rm /etc/nginx/sites-enabled/default
-ADD container /
+COPY pact_broker/Gemfile* $WORKDIR/
+RUN  apk update \
+     && bnl-apk-install-build-deps \
+     && apk-install ruby-json=2.2.2-r1 \
+                   ruby-sqlite=1.3.10-r1 \
+                   ruby-nokogiri=1.6.6.2-r0 \
+                   ruby-sqlite=1.3.10-r1 \
+    && bundle install --system --without='development test' \
+    && rm -rf /var/cache/apk/* \
+    && apk del build-deps
 
-ADD pact_broker/Gemfile $APP_HOME/
-ADD pact_broker/Gemfile.lock $APP_HOME/
-RUN chown -R app:app $APP_HOME
-RUN su app -c "cd $APP_HOME && bundle install --deployment --without='development test'"
+RUN chown -R app:app $WORKDIR $GEM_HOME
 
-ADD pact_broker/ $APP_HOME/
-RUN chown -R app:app $APP_HOME
+COPY pact_broker/ $WORKDIR/
+
+EXPOSE 9292
+CMD ["sh",  "-c", "bundle exec rackup -o 0.0.0.0"]
